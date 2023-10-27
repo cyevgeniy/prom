@@ -1,3 +1,5 @@
+"use strict";
+
 const PENDING = 1
 const FULFILLED = 2
 const REJECTED = 3
@@ -14,105 +16,89 @@ function runAsync(fn) {
   setTimeout(fn, 0)
 }
 
-function setState(state, value) {
-  if (this.state !== PENDING) return
+class Prom {
+  constructor(fn) {
+    // Initially, promise is in pending state
+    this.state = PENDING
+    this.value = undefined
+    this.fulfillQueue = []
+    this.rejectQueue = []
 
-  this.state = state
-  this.value = value
+    const self = this
 
-  this.processQueue()
-}
-
-function fulfill(value) {
-  this.setState(FULFILLED, value)
-}
-
-function reject(reason) {
- this.setState(REJECTED, reason)
-}
-
-function then(onFulfilled, onRejected) {
-  const prom = new Prom()
-
-  if (isFunction(onFulfilled)) {
-    this.fulfillQueue.push({promise: prom, fn: onFulfilled})
-  } else {
-    this.fulfillQueue.push({promise: prom, fn: undefined})
+    if (fn) {
+      fn((value) => {
+          resolvePromise(self, value);
+      }, (reason)  => {
+          self.reject(reason);
+      });
+    }  
   }
 
-  if (isFunction(onRejected)) {
-    this.rejectQueue.push({promise: prom, fn: onRejected})
-  } else {
-    this.rejectQueue.push({promise: prom, fn: undefined})
+  setState(state, value) {
+    if (this.state !== PENDING) return
+
+    this.state = state
+    this.value = value
+
+    this.processQueue()
   }
 
-  this.processQueue()
+  fulfill(value) {
+    this.setState(FULFILLED, value)
+  }
 
-  return prom
-}
+  reject(reason) {
+   this.setState(REJECTED, reason)
+  }
 
-function processQueue() {
-  if (this.state === PENDING) return
+  then(onFulfilled, onRejected) {
+    const prom = new Prom()
 
-  const toProcess = this.state === FULFILLED ? this.fulfillQueue : this.rejectQueue
+    this.fulfillQueue.push({promise: prom, fn: isFunction(onFulfilled) ? onFulfilled : undefined})
+    this.rejectQueue.push({promise: prom, fn: isFunction(onRejected) ? onRejected : undefined})
 
-  const self = this
+    this.processQueue()
 
-  for(;toProcess.length > 0;) {
-    const item = toProcess.shift()
+    return prom
+  }
 
-    let toRun
-    if (self.state === FULFILLED) {
-      toRun = item.fn === undefined ? (val) => val : item.fn
+  processQueue() {
+    if (this.state === PENDING) return
+
+    const toProcess = this.state === FULFILLED ? this.fulfillQueue : this.rejectQueue
+
+    const self = this
+
+    for(;toProcess.length > 0;) {
+      const item = toProcess.shift()
+
+      let toRun
+      if (self.state === FULFILLED) {
+        toRun = item.fn === undefined ? (val) => val : item.fn
+      }
+
+      if (self.state === REJECTED) {
+        toRun = item.fn === undefined ? (reason) => {throw reason} : item.fn
+      }
+
+      self.execCallback(item.promise, toRun)
     }
+  }
 
-    if (self.state === REJECTED) {
-      toRun = item.fn === undefined ? (reason) => {throw reason} : item.fn
-    }
-
-    self.execCallback(item.promise, toRun)
+  execCallback(promise, fn) {
+    const self = this
+    runAsync(() => {
+      try {
+        const x = fn.call(undefined, self.value)
+        resolvePromise(promise, x)
+      } catch(e) {
+        promise.reject(e)
+      }
+    })
   }
 }
 
-
-function execCallback(promise, fn) {
-  const self = this
-  runAsync(() => {
-    try {
-      x = fn.call(undefined, self.value)
-      resolvePromise(promise, x)
-    } catch(e) {
-      promise.reject(e)
-    }
-  })
-}
-
-function Prom(fn) {
-  // Initially, promise is in pending state
-  this.state = PENDING
-  this.value = undefined
-  this.fulfillQueue = []
-  this.rejectQueue = []
-
-  const self = this
-
-  if (fn) {
-    fn((value) => {
-        resolvePromise(self, value);
-    }, (reason)  => {
-        self.reject(reason);
-    });
-}
-}
-
-Prom.prototype.fulfill = fulfill
-Prom.prototype.reject = reject
-Prom.prototype.then = then
-Prom.prototype.execCallback = execCallback
-Prom.prototype.processQueue = processQueue
-Prom.prototype.setState = setState
-
-// Works
 function resolvePromise(promise, x) {
   if (promise === x)
     promise.reject(new TypeError('New type error'))
