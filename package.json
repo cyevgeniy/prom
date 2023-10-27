@@ -1,0 +1,26 @@
+{
+  "name": "prom",
+  "version": "1.0.0",
+  "description": "My implementation of Promises/A+",
+  "main": "prom.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cyevgeniy/prom.git"
+  },
+  "keywords": [
+    "promises",
+    "promise"
+  ],
+  "author": "Evgeny Chaban",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cyevgeniy/prom/issues"
+  },
+  "homepage": "https://github.com/cyevgeniy/prom#readme",
+  "devDependencies": {
+    "promises-aplus-tests": "^2.1.2"
+  }
+}
